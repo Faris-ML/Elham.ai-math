@@ -47,7 +47,7 @@ class Graph():
             return {self.Nodes[key].name:self.Nodes[key].grad for key in self.Nodes.keys()}
     
     def update_variables(self,new_variables:dict):
-        for name,node in self.Nodes:
+        for name,node in self.Nodes.items():
             if isinstance(node,Variable):
                 for key,val in new_variables.items():
                     if key == name:
