@@ -28,7 +28,7 @@ class Graph():
     def forward(self):
         return self.root.forward()
 
-    def backward(self):
+    def backward(self,just_Variabls=False):
         vis=set()
         self.Nodes[list(self.Nodes.keys())[-1]].grad=1
         for key in reversed(list(self.Nodes.keys())):
@@ -41,7 +41,10 @@ class Graph():
                     else:
                         inp.grad += grad
                     vis.add(inp)
-        return {self.Nodes[key].name:self.Nodes[key].grad for key in self.Nodes.keys()}
+        if just_Variabls:
+            return {self.Nodes[key].name:self.Nodes[key].grad for key in self.Nodes.keys() if isinstance(self.Nodes[key],Variable)}
+        else:
+            return {self.Nodes[key].name:self.Nodes[key].grad for key in self.Nodes.keys()}
     
     def update_variables(self,new_variables:dict):
         for name,node in self.Nodes:
