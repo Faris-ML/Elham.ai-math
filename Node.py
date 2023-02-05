@@ -120,4 +120,4 @@ class dot(Operator):
         return self.value
 
     def backward(self,d):
-        return d*self.inp_2.value , d*self.inp_1.value
+        return d*self.inp_2.value.T , d*self.inp_1.value
