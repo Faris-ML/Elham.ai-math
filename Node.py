@@ -106,3 +106,18 @@ class devid(Operator):
 
     def backward(self,d):
         return d/self.inp_2.value,-d*self.inp_1.value/(self.inp_2.value**2)
+
+class dot(Operator):
+    def __init__(self,x1,x2,name=None):
+        self.inp_1=x1
+        self.inp_2=x2
+        self.grad=None
+        self.name = name
+        self.value=None
+
+    def forward(self):
+        self.value= np.dot(self.inp_1.forward(),self.inp_2.forward())
+        return self.value
+
+    def backward(self,d):
+        return d*self.inp_2.value , d*self.inp_1.value

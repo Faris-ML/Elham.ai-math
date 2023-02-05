@@ -42,3 +42,10 @@ class Graph():
                         inp.grad += grad
                     vis.add(inp)
         return {self.Nodes[key].name:self.Nodes[key].grad for key in self.Nodes.keys()}
+    
+    def update_variables(self,new_variables:dict):
+        for name,node in self.Nodes:
+            if isinstance(node,Variable):
+                for key,val in new_variables.items():
+                    if key == name:
+                        self.Nodes[name]=new_variables[key]
