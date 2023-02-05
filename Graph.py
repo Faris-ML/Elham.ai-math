@@ -1,5 +1,4 @@
 from numpy import isin
-
 from Node import *
 class Graph():
     Nodes={}

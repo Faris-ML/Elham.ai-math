@@ -1,11 +1,12 @@
 from Node import *
 from Graph import Graph
+import numpy as np
 
-x=Variable(10,'x')
-y=Variable(1,'y')
-z=Variable(2,'z')
-f=devid(y,x)
+x=Constant(np.array([1,2,3]),'x')
+y=Constant(np.array([2,3,4]),'z')
+w=Variable(8,'w')
+f=power(x,y)
 g=Graph(f)
-print('befor diffrintion : ',g.forward())
+print('forward : ',g.forward())
 
-print('after diffrintion : ',g.backward())
+print('backward : ',g.backward())

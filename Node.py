@@ -1,5 +1,5 @@
-import math
 
+import numpy as np
 class Node():
 
     def __init__(self,name):
@@ -85,11 +85,11 @@ class power(Operator):
         self.value=None
 
     def forward(self):
-        self.value=self.inp_1.forward()**self.inp_2.forward()
+        self.value=np.power(self.inp_1.forward(),self.inp_2.forward())
         return self.value
 
     def backward(self,d):
-        return d*self.inp_2.value*(self.inp_1.value**(self.inp_2.value-1)), d*math.log(self.inp_1.value)*(self.inp_1.value ** self.inp_2.value)
+        return d*self.inp_2.value*(np.power(self.inp_1.value,self.inp_2.value-1)), d*np.log(self.inp_1.value)*(np.power(self.inp_1.value, self.inp_2.value))
 
 class devid(Operator):
 
