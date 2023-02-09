@@ -1,4 +1,5 @@
-from numpy import isin
+import networkx as nx
+import matplotlib.pyplot as plt
 from Node import *
 class Graph():
     Nodes={}
@@ -28,7 +29,7 @@ class Graph():
     def forward(self):
         return self.root.forward()
 
-    def backward(self,just_Variabls=False):
+    def backward(self,just_Variables=False):
         vis=set()
         self.Nodes[list(self.Nodes.keys())[-1]].grad=1
         for key in reversed(list(self.Nodes.keys())):
@@ -39,9 +40,9 @@ class Graph():
                     if inp not in vis:
                         inp.grad = grad
                     else:
-                        inp.grad += grad
+                        inp.grad = inp.grad+grad
                     vis.add(inp)
-        if just_Variabls:
+        if just_Variables:
             return {self.Nodes[key].name:self.Nodes[key] for key in self.Nodes.keys() if isinstance(self.Nodes[key],Variable)}
         else:
             return {self.Nodes[key].name:self.Nodes[key] for key in self.Nodes.keys()}
@@ -52,3 +53,19 @@ class Graph():
                 if key == name:
                     print('variable ', name,' updated')
                     self.Nodes[name] = val
+
+    def plot_Graph(self):
+        G = nx.DiGraph()
+        G.add_nodes_from(list(self.Nodes.keys()))
+        for name,node in self.Nodes.items():
+            if isinstance(node,Operator):
+                for inp in [node.inp_1,node.inp_2]:
+                    G.add_edge(inp.name,name)
+
+        # separate calls to draw nodes and edges
+        plt.figure(figsize=(15,8))
+        pos = nx.shell_layout(G)
+        nx.draw_networkx_nodes(G, pos, cmap=plt.get_cmap('jet'), node_size = 4500,node_color='gray',node_shape='o')
+        nx.draw_networkx_labels(G, pos)
+        nx.draw_networkx_edges(G, pos,arrows=True,width=2)
+        plt.show()
