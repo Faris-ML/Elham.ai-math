@@ -34,8 +34,6 @@ and by the chain rule we compute the gradients by taking the backward pass like 
 * Node: a nodes class that contains three types of nodes
 
 # Types of nodes
-1 - Variable
-
-2 - Constant
-
-3 - Operator
+1- Variable
+2- Constant
+3- Operator
