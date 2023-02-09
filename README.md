@@ -32,6 +32,7 @@ and by the chain rule we compute the gradients by taking the backward pass like 
 ### Classes
 * Graph: graph class that convert equation to graph data structure
 * Node: a nodes class that contains three types of nodes
-1 - Variable
-2 - Constant
-3 - Operator
+
+\t1 - Variable
+\t2 - Constant
+\t3 - Operator
