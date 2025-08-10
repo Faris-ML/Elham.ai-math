@@ -3,11 +3,20 @@
 PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>, true)
 #include "Node.hpp"
 #include "Graph.hpp"
+#include "Bindings.hpp"
 
 namespace py = pybind11;
 
 PYBIND11_MODULE(ElhamMath, m) {
-    py::class_<Node, std::shared_ptr<Node>>(m, "Node");
+    // py::class_<Node, std::shared_ptr<Node>>(m, "Node")
+    
+    py::class_<Node, PyNode, std::shared_ptr<Node>>(m, "Node")
+        .def(py::init<std::string>())
+        .def("forward", &Node::forward)
+        .def("backward", &Node::backward)
+        .def_readwrite("value", &Node::value)
+        .def_readwrite("grad", &Node::grad)
+        .def_readwrite("name", &Node::name);
 
     py::class_<Variable, Node, std::shared_ptr<Variable>>(m, "Variable")
         .def(py::init<double, const std::string&>(),
