@@ -31,6 +31,7 @@ PYBIND11_MODULE(ElhamMath, m)
         .def_readwrite("data", &Tensor::data)
         .def_readwrite("device", &Tensor::device)
         .def("size", &Tensor::size)
+        .def("is_scalar", &Tensor::is_scalar)
         // keep "filled tensor" as a static factory so it doesn't steal kwargs
         .def_static("full", [](const std::vector<int64_t> &shape, double fill, Device dev)
                     {
