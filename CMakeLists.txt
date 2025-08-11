@@ -9,4 +9,4 @@ set(CMAKE_CXX_STANDARD 17)
 add_subdirectory(pybind11)  # ✅ this finds pybind11 locally
 include_directories(${CMAKE_SOURCE_DIR})
 
-pybind11_add_module(ElhamMath bindings.cpp)
+pybind11_add_module(ElhamMath bindings.cpp Kernels_cpu.cpp)

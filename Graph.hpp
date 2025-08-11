@@ -1,43 +1,46 @@
 #pragma once
 #include <map>
-#include <vector>
-#include <set>
+#include <memory>
 #include "Node.hpp"
 
-class Graph {
+class Graph
+{
 public:
     NodePtr root;
     std::map<std::string, NodePtr> nodes;
 
-    Graph(NodePtr r) : root(std::move(r)) {
-        buildGraph(root);
+    explicit Graph(NodePtr r) : root(std::move(r))
+    {
+        build(root);
     }
 
-    void buildGraph(const NodePtr& node) {
-        if (nodes.find(node->name) == nodes.end()) {
-            nodes[node->name] = node;
-            auto op = std::dynamic_pointer_cast<Operator>(node);
-            if (op) {
-                buildGraph(op->inp1);
-                buildGraph(op->inp2);
-            }
+    void build(const NodePtr &n)
+    {
+        if (!n)
+            return;
+        if (nodes.count(n->name))
+            return;
+        nodes[n->name] = n;
+
+        // Discover inputs if it's an Operator/unary_operator
+        if (auto op = std::dynamic_pointer_cast<Operator>(n))
+        {
+            if (op->a)
+                build(op->a);
+            if (op->b)
+                build(op->b);
         }
     }
 
-    double forward() {
-        return root->forward();
-    }
+    Tensor forward() { return root->forward(); }
 
-    void backward() {
-        for (auto& [_, node] : nodes) {
-            node->grad = 0;
-        }
-        root->backward(1.0);
-    }
-
-    void printGrads() const {
-        for (const auto& [name, node] : nodes) {
-            std::cout << name << ": grad=" << node->grad << "\n";
-        }
+    void backward()
+    {
+        // zero grads to shape of each node's value
+        for (auto &kv : nodes)
+            kv.second->grad = Tensor::like(kv.second->value, 0.0);
+        // seed with ones matching root's shape
+        Tensor seed = Tensor::like(root->value, 1.0);
+        root->backward(seed);
     }
 };

@@ -1,108 +1,117 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>, true)
+
+#include "Tensor.hpp"
 #include "Node.hpp"
 #include "Graph.hpp"
-#include "Bindings.hpp"
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(ElhamMath, m) {
-    // py::class_<Node, std::shared_ptr<Node>>(m, "Node")
-    
-    py::class_<Node, PyNode, std::shared_ptr<Node>>(m, "Node")
-        .def(py::init<std::string>())
-        .def("forward", &Node::forward)
-        .def("backward", &Node::backward)
-        .def_readwrite("value", &Node::value)
-        .def_readwrite("grad", &Node::grad)
-        .def_readwrite("name", &Node::name);
+PYBIND11_MODULE(ElhamMath, m)
+{
+    // Tensor + Device (simple for now; later you can add NumPy buffer protocol)
+    py::enum_<Device>(m, "Device")
+        .value("CPU", Device::CPU)
+        .value("CUDA", Device::CUDA);
+    py::class_<Tensor>(m, "Tensor")
+        // nested-list constructors
+        .def(py::init<double, Device>(), py::arg("value"), py::arg("device") = Device::CPU)
+        .def(py::init<const std::vector<double> &, Device>(),
+             py::arg("value"), py::arg("device") = Device::CPU)
+        .def(py::init<const std::vector<std::vector<double>> &, Device>(),
+             py::arg("value"), py::arg("device") = Device::CPU)
+        .def(py::init<const std::vector<std::vector<std::vector<double>>> &, Device>(),
+             py::arg("value"), py::arg("device") = Device::CPU)
+        .def(py::init<const std::vector<std::vector<std::vector<std::vector<double>>>> &, Device>(),
+             py::arg("value"), py::arg("device") = Device::CPU)
+        .def_static("scalar", &Tensor::scalar, py::arg("v"), py::arg("device") = Device::CPU)
+        .def_readonly("shape", &Tensor::shape)
+        .def_readonly("strides", &Tensor::strides)
+        .def_readwrite("data", &Tensor::data)
+        .def_readwrite("device", &Tensor::device)
+        .def("size", &Tensor::size)
+        // keep "filled tensor" as a static factory so it doesn't steal kwargs
+        .def_static("full", [](const std::vector<int64_t> &shape, double fill, Device dev)
+                    {
+            Tensor t;
+            t.shape = shape; t.device = dev; t.recompute_strides();
+            t.data.assign(t.size(), fill);
+            return t; }, py::arg("shape"), py::arg("fill") = 0.0, py::arg("device") = Device::CPU);
 
+    // Node base (abstract)
+    py::class_<Node, std::shared_ptr<Node>>(m, "Node")
+        .def_readwrite("name", &Node::name)
+        .def_readwrite("value", &Node::value)
+        .def_readwrite("grad", &Node::grad);
+
+    // Operator bases
+    py::class_<Operator, Node, std::shared_ptr<Operator>>(m, "Operator");
+    py::class_<UnaryOperator, Operator, std::shared_ptr<UnaryOperator>>(m, "UnaryOperator");
+
+    // Leaves
     py::class_<Variable, Node, std::shared_ptr<Variable>>(m, "Variable")
-        .def(py::init<double, const std::string&>(),
-             py::arg("value"), py::arg("name"))
-        .def_readwrite("value", &Variable::value)
-        .def_readwrite("grad", &Variable::grad)
-        .def("forward", &Variable::forward);
+        .def(py::init<const Tensor &, const std::string &>(),
+             py::arg("value"), py::arg("name"));
 
     py::class_<Constant, Node, std::shared_ptr<Constant>>(m, "Constant")
-        .def(py::init<double, const std::string&>(),
-             py::arg("value"), py::arg("name"))
-        .def("forward", &Constant::forward);
+        .def(py::init<const Tensor &, const std::string &>(),
+             py::arg("value"), py::arg("name"));
 
-    py::class_<Operator, Node, std::shared_ptr<Operator>>(m, "Operator");
-
+    // Binary elementwise ops
     py::class_<add, Operator, std::shared_ptr<add>>(m, "add")
-        .def(py::init<std::shared_ptr<Node>, std::shared_ptr<Node>, const std::string&>(),
-             py::arg("x1"), py::arg("x2"), py::arg("name"))
-        .def("forward", &add::forward)
-        .def("backward", &add::backward);
+        .def(py::init<std::shared_ptr<Node>, std::shared_ptr<Node>, const std::string &>(),
+             py::arg("x1"), py::arg("x2"), py::arg("name") = "");
 
-    py::class_<multiply, Operator, std::shared_ptr<multiply>>(m, "multiply")
-        .def(py::init<std::shared_ptr<Node>, std::shared_ptr<Node>, const std::string&>(),
-             py::arg("x1"), py::arg("x2"), py::arg("name"))
-        .def("forward", &multiply::forward)
-        .def("backward", &multiply::backward);
+    py::class_<sub, Operator, std::shared_ptr<sub>>(m, "sub")
+        .def(py::init<std::shared_ptr<Node>, std::shared_ptr<Node>, const std::string &>(),
+             py::arg("x1"), py::arg("x2"), py::arg("name") = "");
 
+    py::class_<mul, Operator, std::shared_ptr<mul>>(m, "mul")
+        .def(py::init<std::shared_ptr<Node>, std::shared_ptr<Node>, const std::string &>(),
+             py::arg("x1"), py::arg("x2"), py::arg("name") = "");
+
+    py::class_<divide, Operator, std::shared_ptr<divide>>(m, "divide")
+        .def(py::init<std::shared_ptr<Node>, std::shared_ptr<Node>, const std::string &>(),
+             py::arg("numerator"), py::arg("denominator"), py::arg("name") = "");
+
+    py::class_<power, Operator, std::shared_ptr<power>>(m, "power")
+        .def(py::init<std::shared_ptr<Node>, std::shared_ptr<Node>, const std::string &>(),
+             py::arg("x1"), py::arg("x2"), py::arg("name") = "");
+
+    // Unary ops (export names "ln", "exp", "sqrt")
+    py::class_<ln_op, UnaryOperator, std::shared_ptr<ln_op>>(m, "ln")
+        .def(py::init<std::shared_ptr<Node>, const std::string &>(),
+             py::arg("x"), py::arg("name") = "");
+
+    py::class_<exp_op, UnaryOperator, std::shared_ptr<exp_op>>(m, "exp")
+        .def(py::init<std::shared_ptr<Node>, const std::string &>(),
+             py::arg("x"), py::arg("name") = "");
+
+    py::class_<sqrt_op, UnaryOperator, std::shared_ptr<sqrt_op>>(m, "sqrt")
+        .def(py::init<std::shared_ptr<Node>, const std::string &>(),
+             py::arg("x"), py::arg("name") = "");
+
+    // Others
+    py::class_<log_base, Operator, std::shared_ptr<log_base>>(m, "log_base")
+        .def(py::init<std::shared_ptr<Node>, std::shared_ptr<Node>, const std::string &>(),
+             py::arg("x"), py::arg("base"), py::arg("name") = "");
+
+    py::class_<matmul, Operator, std::shared_ptr<matmul>>(m, "matmul")
+        .def(py::init<std::shared_ptr<Node>, std::shared_ptr<Node>, const std::string &>(),
+             py::arg("A"), py::arg("B"), py::arg("name") = "");
+
+    py::class_<dot, Operator, std::shared_ptr<dot>>(m, "dot")
+        .def(py::init<std::shared_ptr<Node>, std::shared_ptr<Node>, const std::string &>(),
+             py::arg("a"), py::arg("b"), py::arg("name") = "");
+
+    py::class_<cross, Operator, std::shared_ptr<cross>>(m, "cross")
+        .def(py::init<std::shared_ptr<Node>, std::shared_ptr<Node>, const std::string &>(),
+             py::arg("a"), py::arg("b"), py::arg("name") = "");
+
+    // Graph
     py::class_<Graph>(m, "Graph")
         .def(py::init<std::shared_ptr<Node>>(), py::arg("root"))
         .def("forward", &Graph::forward)
-        .def("backward", &Graph::backward)
-        .def("print_grads", &Graph::printGrads);
-    
-    py::class_<UnaryOperator, Node, std::shared_ptr<UnaryOperator>>(m, "UnaryOperator");
-    
-    py::class_<power, Operator, std::shared_ptr<power>>(m, "power")
-    .def(py::init<std::shared_ptr<Node>, std::shared_ptr<Node>, const std::string&>(),
-         py::arg("x1"), py::arg("x2"), py::arg("name"))
-    .def("forward", &power::forward)
-    .def("backward", &power::backward);
-    
-    // ---- ln(x) ----
-py::class_<ln, UnaryOperator, std::shared_ptr<ln>>(m, "ln")
-    .def(py::init<std::shared_ptr<Node>, const std::string&>(),
-         py::arg("x"), py::arg("name") = "")
-    .def("forward",  &ln::forward)
-    .def("backward", &ln::backward);
-
-// ---- exp(x) ----
-py::class_<exp, UnaryOperator, std::shared_ptr<exp>>(m, "exp")
-    .def(py::init<std::shared_ptr<Node>, const std::string&>(),
-         py::arg("x"), py::arg("name") = "")
-    .def("forward",  &exp::forward)
-    .def("backward", &exp::backward);
-
-// ---- sqrt(x) ----
-py::class_<sqrt, UnaryOperator, std::shared_ptr<sqrt>>(m, "sqrt")
-    .def(py::init<std::shared_ptr<Node>, const std::string&>(),
-         py::arg("x"), py::arg("name") = "")
-    .def("forward",  &sqrt::forward)
-    .def("backward", &sqrt::backward);
-
-// ---- log base b: log_b(x) ----
-py::class_<log_base, Operator, std::shared_ptr<log_base>>(m, "log_base")
-    .def(py::init<std::shared_ptr<Node>, std::shared_ptr<Node>, const std::string&>(),
-         py::arg("x"), py::arg("base"), py::arg("name") = "")
-    .def("forward",  &log_base::forward)
-    .def("backward", &log_base::backward);
-py::class_<divide, Operator, std::shared_ptr<divide>>(m, "divide")
-    .def(py::init<std::shared_ptr<Node>, std::shared_ptr<Node>, const std::string&>(),
-         py::arg("numerator"), py::arg("denominator"), py::arg("name") = "")
-    .def("forward",  &divide::forward)
-    .def("backward", &divide::backward);
-
-// (optional; consistent with your style)
-py::implicitly_convertible<divide, Node>();
-    py::implicitly_convertible<UnaryOperator, Node>();
-    py::implicitly_convertible<ln,           Node>();
-    py::implicitly_convertible<exp,          Node>();
-    py::implicitly_convertible<sqrt,         Node>();
-    py::implicitly_convertible<log_base,      Node>();
-    py::implicitly_convertible<Variable, Node>();
-    py::implicitly_convertible<Constant, Node>();
-    py::implicitly_convertible<Operator, Node>();
-    py::implicitly_convertible<multiply, Node>();
-    py::implicitly_convertible<add, Node>();
-    py::implicitly_convertible<power, Node>();
-
+        .def("backward", &Graph::backward);
 }
